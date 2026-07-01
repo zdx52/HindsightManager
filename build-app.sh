@@ -53,6 +53,12 @@ echo "   ✅ 二进制: $(du -h "$MACOS_DIR/${APP_NAME}" | cut -f1)"
 cp "SupportingFiles/Info.plist" "${CONTENTS}/"
 echo "   ✅ Info.plist"
 
+# 复制图标
+if [ -f "SupportingFiles/AppIcon.icns" ]; then
+    cp "SupportingFiles/AppIcon.icns" "${RESOURCES_DIR}/"
+    echo "   ✅ AppIcon.icns"
+fi
+
 # 3. 签名
 echo ""
 echo "📦 [3/3] 签名 (ad-hoc)..."
