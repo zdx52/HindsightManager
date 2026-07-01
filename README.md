@@ -121,7 +121,7 @@ HindsightManager/
 Version is kept consistent across 5 locations: source plist, project bundle, Applications, README, GitHub.
 
 ```
-v1.0.0 — 🎉 Initial release
+v1.1.0 — LLM 配置 + 界面重构
 ```
 
 ---

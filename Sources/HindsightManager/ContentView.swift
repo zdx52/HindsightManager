@@ -5,6 +5,13 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var state: AppState
     
+    /// 从 Info.plist 读取版本号（创建 Release 时自动匹配）
+    private var appVersion: String {
+        let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?.?.?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "v\(ver) (\(build))"
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             headerView
@@ -138,6 +145,10 @@ struct ContentView: View {
                         .frame(width: 10, height: 10)
                     Text("Hindsight")
                         .font(.system(size: 17, weight: .semibold))
+                    Text(appVersion)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 2)
                 }
                 Spacer()
                 HStack(spacing: 6) {

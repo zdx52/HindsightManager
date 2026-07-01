@@ -121,7 +121,7 @@ HindsightManager/
 版本号在五个位置统一维护：源码 plist → .app 包 → Applications → README → GitHub
 
 ```
-v1.0.0 — 🎉 初始版本
+v1.1.0 — LLM 配置 + 界面重构
 ```
 
 ---
