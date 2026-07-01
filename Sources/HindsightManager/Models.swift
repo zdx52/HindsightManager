@@ -1,5 +1,10 @@
 import Foundation
 
+// MARK: - Keychain 常量
+
+let LLMKeychainService = "com.aiusagemonitor"
+let LLMKeychainAccount = "hindsight-api-key"
+
 // MARK: - 状态枚举
 
 enum ServiceStatus: Equatable {
@@ -46,6 +51,10 @@ class AppState: ObservableObject {
     @Published var installStep: InstallStep = .idle
     @Published var logs: [String] = []
     @Published var isWorking = false
+    @Published var showReinstallAlert = false
+    @Published var showSettings = false
+    @Published var availableModels: [String] = []
+    @Published var modelsLoading = false
     
     private let detector = HindsightDetector()
     private let installer = InstallService()
@@ -193,14 +202,32 @@ class AppState: ObservableObject {
         await scan()
     }
     
+    /// 点击「重新安装」：始终弹确认，显示当前版本
+    func reinstallTapped() {
+        showReinstallAlert = true
+    }
+    
     // MARK: - 日志
     
     func addLog(_ msg: String) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        let ts = formatter.string(from: Date())
-        logs.append("[\(ts)] \(msg)")
+        let ts = Self.logFormatter.string(from: Date())
+        let entry = "[\(ts)] \(msg)"
+        
+        // 去重：查找相同消息内容，覆盖时间戳
+        let msgPrefix = "] \(msg)"
+        if let index = logs.lastIndex(where: { $0.hasSuffix(msgPrefix) }) {
+            logs[index] = entry
+        } else {
+            logs.append(entry)
+        }
     }
+    
+    private static let logFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        f.locale = Locale(identifier: "zh_CN")
+        return f
+    }()
 }
 
 // MARK: - 辅助
@@ -210,4 +237,64 @@ extension AppState {
         if case .installed(let v, _, _, _) = status { return v }
         return ""
     }
+    
+    /// LLM 是否已配置（API Key 已保存到 Keychain）
+    var llmConfigured: Bool {
+        KeychainHelper.read(service: LLMKeychainService, account: LLMKeychainAccount) != nil
+    }
+    
+    /// 重新生成 launchd plist 和启动脚本
+    func applyConfig() async {
+        let ok = await installer.applyLLMConfig()
+        if ok {
+            addLog("✅ 启动脚本和 launchd 配置已更新")
+        } else {
+            addLog("⚠️ 配置更新失败")
+        }
+    }
+    
+    /// 从 OpenCode API 拉取可用模型列表
+    func fetchModels() async {
+        guard let apiKey = KeychainHelper.read(service: LLMKeychainService, account: LLMKeychainAccount),
+              !apiKey.isEmpty else {
+            // 没有 API Key 时使用默认列表
+            availableModels = Self.defaultModels
+            return
+        }
+        
+        let baseURL = UserDefaults.standard.string(forKey: "llm_base_url") ?? "https://opencode.ai/zen/go/v1"
+        let urlStr = baseURL.hasSuffix("/") ? "\(baseURL)models" : "\(baseURL)/models"
+        guard let url = URL(string: urlStr) else { return }
+        
+        modelsLoading = true
+        defer { modelsLoading = false }
+        
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 10
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let models = json["data"] as? [[String: Any]] else {
+                availableModels = Self.defaultModels
+                return
+            }
+            let ids = models.compactMap { $0["id"] as? String }.sorted()
+            availableModels = ids.isEmpty ? Self.defaultModels : ids
+        } catch {
+            availableModels = Self.defaultModels
+        }
+    }
+    
+    private static let defaultModels = [
+        "deepseek-v4-flash", "deepseek-v4-pro",
+        "glm-5.2", "glm-5.1", "glm-5",
+        "kimi-k2.7-code", "kimi-k2.6", "kimi-k2.5",
+        "minimax-m3", "minimax-m2.7", "minimax-m2.5",
+        "mimo-v2.5", "mimo-v2.5-pro", "mimo-v2-pro", "mimo-v2-omni",
+        "qwen3.7-max", "qwen3.7-plus", "qwen3.6-plus", "qwen3.5-plus",
+        "hy3-preview",
+    ]
 }

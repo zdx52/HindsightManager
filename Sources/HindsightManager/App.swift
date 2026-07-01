@@ -11,5 +11,6 @@ struct HindsightManagerApp: App {
                 .frame(minWidth: 500, idealWidth: 500, maxWidth: 600,
                        minHeight: 480, idealHeight: 520, maxHeight: 700)
         }
+        .windowResizability(.contentSize)
     }
 }

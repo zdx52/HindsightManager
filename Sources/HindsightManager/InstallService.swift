@@ -60,24 +60,24 @@ final class InstallService: Sendable {
         let scriptsDir = home + "/.hermes/scripts"
         _ = await runCmdOutput("/bin/mkdir", "-p", scriptsDir)
         
-        // 创建启动脚本
+        // 始终重写启动脚本
         let startScript = scriptsDir + "/hindsight-start.sh"
-        if !FileManager.default.fileExists(atPath: startScript) {
-            let script = Self.startScriptContent(home: home)
-            do {
-                try script.write(toFile: startScript, atomically: true, encoding: .utf8)
-                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: startScript)
-            } catch {
-                return false
-            }
+        let script = Self.startScriptContent(home: home)
+        do {
+            try script.write(toFile: startScript, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: startScript)
+        } catch {
+            NSLog("[HindsightManager] Failed to write start script: \(error.localizedDescription)")
+            return false
         }
         
-        // 创建 plist
+        // 重写 plist
         let plistContent = Self.plistContent(home: home, startScript: startScript)
         let plistPath = home + "/Library/LaunchAgents/com.user.hindsight-embed.plist"
         do {
             try plistContent.write(toFile: plistPath, atomically: true, encoding: .utf8)
         } catch {
+            NSLog("[HindsightManager] Failed to write launchd plist: \(error.localizedDescription)")
             return false
         }
         
@@ -97,8 +97,7 @@ final class InstallService: Sendable {
         ]
         
         for method in methods {
-            let r = await method()
-            if r.exitCode == 0 { break }
+            if await method().exitCode == 0 { break }
         }
         
         // 等待服务启动（最长 30 秒）
@@ -142,30 +141,43 @@ final class InstallService: Sendable {
     // MARK: - 模板生成（静态方法避免字符串插值污染）
     
     private static func startScriptContent(home: String) -> String {
-        #"""
+        return #"""
         #!/bin/bash
         export HF_ENDPOINT=https://hf-mirror.com
         export PYTHONPATH=""
+        
+        PG_BIN="\#(home)/.pg0/installation/18.1.0/bin"
         PG_DIR="\#(home)/.pg0/instances/hindsight-embed-hermes/data"
-        PG_BIN=$(find "\#(home)/.pg0/installation" -name "pg_ctl" 2>/dev/null | head -1)
-        if [ -n "$PG_BIN" ]; then
-            PG_BIN_DIR=$(dirname "$PG_BIN")
-            if ! /usr/sbin/lsof -i :5432 >/dev/null 2>&1; then
-                rm -f "$PG_DIR/postmaster.pid"
-                "$PG_BIN" -D "$PG_DIR" -l /tmp/pg-hindsight.log start
-                sleep 3
-            fi
+        
+        # PostgreSQL
+        if ! /usr/sbin/lsof -i :5432 >/dev/null 2>&1; then
+            rm -f "$PG_DIR/postmaster.pid"
+            "$PG_BIN/pg_ctl" -D "$PG_DIR" -l /tmp/pg-hindsight.log start
+            sleep 3
         fi
+        
+        # 从 Keychain 读取 API Key
+        API_KEY=$(security find-generic-password -s "com.aiusagemonitor" -a "hindsight-api-key" -w 2>/dev/null)
+        if [ -z "$API_KEY" ]; then
+            echo "[FATAL] Hindsight API key not found in Keychain" >&2
+            exit 1
+        fi
+        
+        # 启动 API（通过 opencode-go 访问 DeepSeek V4 Flash）
         exec /usr/bin/env \
           HF_ENDPOINT=https://hf-mirror.com \
           PYTHONPATH="" \
-          "\#(home)/.local/share/uv/tools/hindsight-api/bin/hindsight-api" \
+          HINDSIGHT_API_LLM_PROVIDER=opencode-go \
+          HINDSIGHT_API_LLM_API_KEY="$API_KEY" \
+          HINDSIGHT_API_LLM_MODEL=deepseek-v4-flash \
+          \#(home)/.local/share/uv/tools/hindsight-api/bin/python \
+          \#(home)/.local/share/uv/tools/hindsight-api/bin/hindsight-api \
           --port 9077 --idle-timeout 0
         """#
     }
     
     private static func plistContent(home: String, startScript: String) -> String {
-        #"""
+        return #"""
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -198,5 +210,33 @@ final class InstallService: Sendable {
         </dict>
         </plist>
         """#
+    }
+    
+    /// 重新生成 launchd plist 和启动脚本
+    func applyLLMConfig() async -> Bool {
+        let home = NSHomeDirectory()
+        let scriptsDir = home + "/.hermes/scripts"
+        _ = await runCmdOutput("/bin/mkdir", "-p", scriptsDir)
+        
+        // 重写启动脚本
+        let startScript = scriptsDir + "/hindsight-start.sh"
+        let script = Self.startScriptContent(home: home)
+        do {
+            try script.write(toFile: startScript, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: startScript)
+        } catch {
+            return false
+        }
+        
+        // 重写 plist
+        let plistContent = Self.plistContent(home: home, startScript: startScript)
+        let plistPath = home + "/Library/LaunchAgents/com.user.hindsight-embed.plist"
+        do {
+            try plistContent.write(toFile: plistPath, atomically: true, encoding: .utf8)
+        } catch {
+            return false
+        }
+        
+        return true
     }
 }
