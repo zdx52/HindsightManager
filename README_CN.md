@@ -72,12 +72,12 @@ Hindsight 需要 LLM API Key 来记忆处理（提取事实、合成回答）。
 3. API Key 安全存储在 **macOS Keychain**
 4. 保存后自动注入 launchd 启动环境
 
-| 参数 | 说明 | 示例（Agnes AI） |
-|------|------|------------------|
-| Provider | 服务商 | `openai` |
-| API Key | 你的密钥 | `sk-ag-xxx` |
-| Base URL | API 端点 | `https://apihub.agnes-ai.com/v1` |
-| Model | 模型名 | `deepseek-v4-flash` |
+| 参数 | 说明 | 示例（OpenCode Go） |
+|------|------|---------------------|
+| Provider | 服务商 | `opencode-go` |
+| API Key | 你的密钥 | `sk-xxx` |
+| Base URL | API 端点 | `https://opencode.ai/zen/go/v1` |
+| Model | 模型名 | `deepseek-v4-flash`、`deepseek-v4-pro`、`glm-5.2`、`kimi-k2.7-code`、`mimo-v2.5` 等 |
 
 ---
 

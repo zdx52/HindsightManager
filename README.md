@@ -72,12 +72,12 @@ Hindsight requires an LLM API key for memory processing (fact extraction, respon
 3. API key is stored securely in **macOS Keychain**
 4. Saved config is automatically injected into the launchd environment
 
-| Parameter | Description | Example (Agnes AI) |
-|-----------|-------------|-------------------|
-| Provider | API provider | `openai` |
-| API Key | Your API key | `sk-ag-xxx` |
-| Base URL | API endpoint | `https://apihub.agnes-ai.com/v1` |
-| Model | Model name | `deepseek-v4-flash` |
+| Parameter | Description | Example (OpenCode Go) |
+|-----------|-------------|----------------------|
+| Provider | API provider | `opencode-go` |
+| API Key | Your API key | `sk-xxx` |
+| Base URL | API endpoint | `https://opencode.ai/zen/go/v1` |
+| Model | Model name | `deepseek-v4-flash`, `deepseek-v4-pro`, `glm-5.2`, `kimi-k2.7-code`, `mimo-v2.5`, etc. |
 
 ---
 
