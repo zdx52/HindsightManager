@@ -2,6 +2,10 @@
 
 > macOS 原生 App — Hindsight 记忆服务安装、升级、状态监控管家
 
+<p align="center">
+  <img src="SupportingFiles/AppIcon.png" width="128" height="128" alt="Hindsight Manager 图标">
+</p>
+
 [![Swift](https://img.shields.io/badge/Swift-6.0-F05138?logo=swift)](https://swift.org)
 [![macOS](https://img.shields.io/badge/macOS-14+-lightgrey?logo=apple)](https://developer.apple.com/macos)
 [![Platform](https://img.shields.io/badge/Platform-Apple%20Silicon%20%7C%20Intel-brightgreen)](#)
